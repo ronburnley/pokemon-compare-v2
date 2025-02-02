@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Select from 'react-select';
+import Select, { StylesConfig } from 'react-select';
 import { Box, IconButton, HStack, keyframes } from '@chakra-ui/react';
 import axios from 'axios';
 
@@ -29,6 +29,39 @@ const DiceIcon = () => (
   </svg>
 );
 
+const selectStyles: StylesConfig<PokemonOption> = {
+  control: (base) => ({
+    ...base,
+    borderRadius: '0.375rem',
+    borderColor: '#E2E8F0',
+    boxShadow: 'none',
+    '&:hover': {
+      borderColor: '#CBD5E0',
+    },
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 9999,
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected
+      ? '#4299E1'
+      : state.isFocused
+      ? '#EBF8FF'
+      : 'white',
+    color: state.isSelected ? 'white' : 'black',
+    cursor: 'pointer',
+    ':active': {
+      backgroundColor: state.isSelected ? '#4299E1' : '#E2E8F0',
+    },
+  }),
+  input: (base) => ({
+    ...base,
+    color: 'black',
+  }),
+};
+
 const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
   const [options, setOptions] = useState<PokemonOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,14 +76,16 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
           value: pokemon.name,
           label: pokemon.name
             .split('-')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' '),
         }));
         
-        setOptions(pokemonList.sort((a, b) => a.label.localeCompare(b.label)));
-        setIsLoading(false);
+        setOptions(pokemonList.sort((a: PokemonOption, b: PokemonOption) => 
+          a.label.localeCompare(b.label)
+        ));
       } catch (error) {
         console.error('Error fetching pokemon:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -72,41 +107,18 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
 
   return (
     <HStack mb={4} width="100%" spacing={2}>
-      <Box flex={1}>
-        <Select
+      <Box flex={1} position="relative">
+        <Select<PokemonOption>
           options={options}
           isLoading={isLoading}
           onChange={(option) => option && onSelect(option.value)}
           placeholder="Select a Pokémon..."
-          isSearchable={true}
-          isClearable={true}
-          menuPosition="fixed"
-          styles={{
-            control: (base) => ({
-              ...base,
-              borderRadius: '0.375rem',
-              borderColor: '#E2E8F0',
-              '&:hover': {
-                borderColor: '#CBD5E0',
-              },
-            }),
-            menu: (base) => ({
-              ...base,
-              zIndex: 9999,
-              position: 'fixed',
-              width: '100%',
-              minWidth: '200px'
-            }),
-            option: (base, state) => ({
-              ...base,
-              backgroundColor: state.isSelected
-                ? '#4299E1'
-                : state.isFocused
-                ? '#EBF8FF'
-                : 'white',
-              color: state.isSelected ? 'white' : 'black',
-              cursor: 'pointer'
-            }),
+          isSearchable
+          isClearable
+          classNamePrefix="select"
+          styles={selectStyles}
+          components={{
+            IndicatorSeparator: () => null,
           }}
         />
       </Box>
