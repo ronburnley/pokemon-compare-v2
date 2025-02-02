@@ -7,7 +7,6 @@ import {
   VStack,
   HStack,
   Badge,
-  Progress,
   Center,
   Tooltip,
   Flex,
