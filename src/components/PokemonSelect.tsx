@@ -6,7 +6,6 @@ import axios from 'axios';
 interface PokemonOption {
   value: string;
   label: string;
-  url: string;
 }
 
 interface PokemonSelectProps {
@@ -30,63 +29,33 @@ const DiceIcon = () => (
   </svg>
 );
 
-// Move the data fetching to a separate function that can be shared
-let cachedOptions: PokemonOption[] | null = null;
-
-const fetchPokemonData = async (): Promise<PokemonOption[]> => {
-  if (cachedOptions) {
-    return cachedOptions;
-  }
-
-  try {
-    const speciesResponse = await axios.get('https://pokeapi.co/api/v2/pokemon-species?limit=1000');
-    const speciesPromises = speciesResponse.data.results.map((species: { url: string }) =>
-      axios.get(species.url)
-    );
-    
-    const speciesData = await Promise.all(speciesPromises);
-    
-    const varietyPromises = speciesData.flatMap(species => 
-      species.data.varieties.map((variety: { pokemon: { url: string } }) =>
-        axios.get(variety.pokemon.url)
-      )
-    );
-    
-    const varietyData = await Promise.all(varietyPromises);
-    
-    const pokemonList = varietyData.map(pokemon => ({
-      value: pokemon.data.name,
-      label: pokemon.data.name
-        .split('-')
-        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' '),
-      url: pokemon.data.url
-    }));
-
-    pokemonList.sort((a, b) => a.label.localeCompare(b.label));
-    
-    cachedOptions = pokemonList;
-    return pokemonList;
-  } catch (error) {
-    console.error('Error fetching pokemon list:', error);
-    return [];
-  }
-};
-
 const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
   const [options, setOptions] = useState<PokemonOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRolling, setIsRolling] = useState(false);
 
   useEffect(() => {
-    const loadOptions = async () => {
-      setIsLoading(true);
-      const pokemonList = await fetchPokemonData();
-      setOptions(pokemonList);
-      setIsLoading(false);
+    const fetchPokemon = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get('https://pokeapi.co/api/v2/pokemon?limit=2000');
+        const pokemonList = response.data.results.map((pokemon: { name: string }) => ({
+          value: pokemon.name,
+          label: pokemon.name
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        }));
+        
+        setOptions(pokemonList.sort((a, b) => a.label.localeCompare(b.label)));
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching pokemon:', error);
+        setIsLoading(false);
+      }
     };
 
-    loadOptions();
+    fetchPokemon();
   }, []);
 
   const handleRandomPick = () => {
@@ -110,12 +79,9 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
           onChange={(option) => option && onSelect(option.value)}
           placeholder="Select a Pokémon..."
           isSearchable={true}
-          menuPortalTarget={document.body}
+          isClearable={true}
+          menuPosition="fixed"
           styles={{
-            menuPortal: (base) => ({
-              ...base,
-              zIndex: 9999
-            }),
             control: (base) => ({
               ...base,
               borderRadius: '0.375rem',
@@ -123,6 +89,13 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
               '&:hover': {
                 borderColor: '#CBD5E0',
               },
+            }),
+            menu: (base) => ({
+              ...base,
+              zIndex: 9999,
+              position: 'fixed',
+              width: '100%',
+              minWidth: '200px'
             }),
             option: (base, state) => ({
               ...base,
@@ -132,6 +105,7 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
                 ? '#EBF8FF'
                 : 'white',
               color: state.isSelected ? 'white' : 'black',
+              cursor: 'pointer'
             }),
           }}
         />
