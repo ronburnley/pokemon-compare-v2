@@ -6,6 +6,7 @@ import axios from 'axios';
 interface PokemonOption {
   value: string;
   label: string;
+  url: string;
 }
 
 interface PokemonSelectProps {
@@ -35,13 +36,38 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
   const [isRolling, setIsRolling] = useState(false);
 
   useEffect(() => {
-    const fetchPokemonList = async () => {
+    const fetchAllPokemonForms = async () => {
       try {
-        const response = await axios.get('https://pokeapi.co/api/v2/pokemon?limit=1000');
-        const pokemonList = response.data.results.map((pokemon: { name: string }) => ({
-          value: pokemon.name,
-          label: pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1),
+        // First, get all Pokémon species
+        const speciesResponse = await axios.get('https://pokeapi.co/api/v2/pokemon-species?limit=1000');
+        const speciesPromises = speciesResponse.data.results.map((species: { url: string }) =>
+          axios.get(species.url)
+        );
+        
+        const speciesData = await Promise.all(speciesPromises);
+        
+        // Get all varieties for each species
+        const varietyPromises = speciesData.flatMap(species => 
+          species.data.varieties.map((variety: { pokemon: { url: string } }) =>
+            axios.get(variety.pokemon.url)
+          )
+        );
+        
+        const varietyData = await Promise.all(varietyPromises);
+        
+        // Create options list with all forms
+        const pokemonList = varietyData.map(pokemon => ({
+          value: pokemon.data.name,
+          label: pokemon.data.name
+            .split('-')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' '),
+          url: pokemon.data.url
         }));
+
+        // Sort alphabetically
+        pokemonList.sort((a, b) => a.label.localeCompare(b.label));
+        
         setOptions(pokemonList);
         setIsLoading(false);
       } catch (error) {
@@ -50,7 +76,7 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
       }
     };
 
-    fetchPokemonList();
+    fetchAllPokemonForms();
   }, []);
 
   const handleRandomPick = () => {
@@ -58,7 +84,6 @@ const PokemonSelect = ({ onSelect }: PokemonSelectProps) => {
       setIsRolling(true);
       const randomIndex = Math.floor(Math.random() * options.length);
       
-      // Animate for 1 second before selecting
       setTimeout(() => {
         onSelect(options[randomIndex].value);
         setIsRolling(false);
